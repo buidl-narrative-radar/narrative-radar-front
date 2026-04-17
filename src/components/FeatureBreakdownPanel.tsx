@@ -24,12 +24,12 @@ export function FeatureBreakdownPanel({ feature }: FeatureBreakdownPanelProps) {
         <article className="metric-tile metric-tile--primary">
           <span>Mood score</span>
           <strong>{metricFormatter.format(feature.moodScore)}</strong>
-          <p>clean_text 기반 규칙 추론 결과</p>
+          <p>Rule-based inference result derived from clean_text.</p>
         </article>
         <article className="metric-tile">
           <span>Aux tags</span>
           <strong>{feature.auxTags.length > 0 ? feature.auxTags.join(', ') : 'None'}</strong>
-          <p>crowd behavior를 설명하는 보조 태그</p>
+          <p>Auxiliary tags that explain crowd behavior.</p>
         </article>
       </div>
 

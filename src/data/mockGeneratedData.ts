@@ -3,42 +3,42 @@ export const flowOverview = [
   {
     "id": "mock-discussion-docs",
     "title": "Mock Discussion Docs",
-    "description": "mock_data/moltbook_mock_docs.md 에서 분산된 discussion 문서를 불러옵니다."
+    "description": "Load distributed discussion documents from mock_data/moltbook_mock_docs.md."
   },
   {
     "id": "adapter",
     "title": "Adapter",
-    "description": "submolt, asset_key, engagement, labels 를 정규화된 내부 문서 구조로 변환합니다."
+    "description": "Normalize submolt, asset_key, engagement, and labels into the internal document structure."
   },
   {
     "id": "llm-feature-extractor",
     "title": "LLM Feature Extractor",
-    "description": "현재 프론트 mock 은 extractor의 mode=mock 출력을 사용해 mood, play, risk를 재현합니다."
+    "description": "The current frontend mock recreates mood, play, and risk using the extractor's mode=mock output."
   },
   {
     "id": "document-features",
     "title": "Document Features",
-    "description": "문서 단위 feature vector 와 hint 기반 evaluation 입력을 확인합니다."
+    "description": "Inspect document-level feature vectors and hint-based evaluation inputs."
   },
   {
     "id": "group-by-asset",
     "title": "Group by Asset",
-    "description": "asset_key 기준으로 문서를 묶어 posture 엔진의 시장 단위를 만듭니다."
+    "description": "Group documents by asset_key to create the market unit for the posture engine."
   },
   {
     "id": "state-aggregator",
     "title": "State Aggregator",
-    "description": "engagement 가중치를 사용해 asset-level mood / play / risk 를 집계합니다."
+    "description": "Aggregate asset-level mood, play, and risk using engagement weights."
   },
   {
     "id": "asset-level-state",
     "title": "Asset-level State",
-    "description": "mood_label, playbook_label, risk_flags, confidence 를 posture state로 노출합니다."
+    "description": "Expose mood_label, playbook_label, risk_flags, and confidence as the posture state."
   },
   {
     "id": "json-summary",
     "title": "JSON + Summary",
-    "description": "output.json 에 가까운 shape 과 summary / confidence label 을 프론트에서 미리 보여줍니다."
+    "description": "Preview a frontend shape close to output.json together with summary and confidence label."
   }
 ]
 
@@ -46,10 +46,10 @@ export const assetOutputs = [
   {
     "assetKey": "bsc:BNB",
     "symbol": "BNB",
-    "moodLabel": "혼잡",
-    "playbookLabel": "불확실",
+    "moodLabel": "Crowded",
+    "playbookLabel": "Unclear",
     "riskFlags": [],
-    "summary": "bsc:BNB는 현재 혼잡 상태이며, crowd는 불확실 전략을 보이고 있습니다. 리스크 요인은 입니다.",
+    "summary": "bsc:BNB currently looks crowded, the crowd is leaning toward an unclear playbook, and the main risk is still undefined in this mock dataset.",
     "confidenceScore": 0.341,
     "confidenceLabel": "Low",
     "raw": {
@@ -71,10 +71,10 @@ export const assetOutputs = [
   {
     "assetKey": "bsc:CAKE",
     "symbol": "CAKE",
-    "moodLabel": "혼잡",
-    "playbookLabel": "불확실",
+    "moodLabel": "Crowded",
+    "playbookLabel": "Unclear",
     "riskFlags": [],
-    "summary": "bsc:CAKE는 현재 혼잡 상태이며, crowd는 불확실 전략을 보이고 있습니다. 리스크 요인은 입니다.",
+    "summary": "bsc:CAKE currently looks crowded, the crowd is leaning toward an unclear playbook, and the main risk is still undefined in this mock dataset.",
     "confidenceScore": 0.314,
     "confidenceLabel": "Low",
     "raw": {
@@ -96,10 +96,10 @@ export const assetOutputs = [
   {
     "assetKey": "bsc:LISTA",
     "symbol": "LISTA",
-    "moodLabel": "조심스러운 낙관",
-    "playbookLabel": "이벤트 선점",
+    "moodLabel": "Cautious Optimism",
+    "playbookLabel": "Event Front-run",
     "riskFlags": [],
-    "summary": "bsc:LISTA는 현재 조심스러운 낙관 상태이며, crowd는 이벤트 선점 전략을 보이고 있습니다. 리스크 요인은 입니다.",
+    "summary": "bsc:LISTA currently reads as cautious optimism, the crowd is leaning toward an event front-run playbook, and the main risk is still undefined in this mock dataset.",
     "confidenceScore": 0.419,
     "confidenceLabel": "Low",
     "raw": {
@@ -121,10 +121,10 @@ export const assetOutputs = [
   {
     "assetKey": "bsc:THE",
     "symbol": "THE",
-    "moodLabel": "혼잡",
-    "playbookLabel": "불확실",
+    "moodLabel": "Crowded",
+    "playbookLabel": "Unclear",
     "riskFlags": [],
-    "summary": "bsc:THE는 현재 혼잡 상태이며, crowd는 불확실 전략을 보이고 있습니다. 리스크 요인은 입니다.",
+    "summary": "bsc:THE currently looks crowded, the crowd is leaning toward an unclear playbook, and the main risk is still undefined in this mock dataset.",
     "confidenceScore": 0.299,
     "confidenceLabel": "Low",
     "raw": {
@@ -146,10 +146,10 @@ export const assetOutputs = [
   {
     "assetKey": "bsc:BANANA",
     "symbol": "BANANA",
-    "moodLabel": "혼잡",
-    "playbookLabel": "이벤트 선점",
+    "moodLabel": "Crowded",
+    "playbookLabel": "Event Front-run",
     "riskFlags": [],
-    "summary": "bsc:BANANA는 현재 혼잡 상태이며, crowd는 이벤트 선점 전략을 보이고 있습니다. 리스크 요인은 입니다.",
+    "summary": "bsc:BANANA currently looks crowded, the crowd is leaning toward an event front-run playbook, and the main risk is still undefined in this mock dataset.",
     "confidenceScore": 0.307,
     "confidenceLabel": "Low",
     "raw": {
@@ -171,10 +171,10 @@ export const assetOutputs = [
   {
     "assetKey": "bsc:KOMA",
     "symbol": "KOMA",
-    "moodLabel": "혼잡",
-    "playbookLabel": "불확실",
+    "moodLabel": "Crowded",
+    "playbookLabel": "Unclear",
     "riskFlags": [],
-    "summary": "bsc:KOMA는 현재 혼잡 상태이며, crowd는 불확실 전략을 보이고 있습니다. 리스크 요인은 입니다.",
+    "summary": "bsc:KOMA currently looks crowded, the crowd is leaning toward an unclear playbook, and the main risk is still undefined in this mock dataset.",
     "confidenceScore": 0.313,
     "confidenceLabel": "Low",
     "raw": {

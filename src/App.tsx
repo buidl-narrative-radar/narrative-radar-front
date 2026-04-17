@@ -1,55 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AssetStateCardList } from './components/AssetStateCardList'
-import { AssetStateDetailPanel } from './components/AssetStateDetailPanel'
-import { LiveApiCoveragePanel } from './components/LiveApiCoveragePanel'
-import { SelectedAssetResponsePanel } from './components/SelectedAssetResponsePanel'
 import type { AssetOutput } from './domain/types'
-import type { AssetSource } from './data/assetSummaryRepository'
 import { fallbackAssetOutputs } from './data/fallbackAssetOutputs'
 import { httpAssetSummaryRepository } from './data/httpAssetSummaryRepository'
+import { alertItems, getUiPreset, promptSuggestions } from './data/uiContent'
 
-const tabs = ['Discover', 'Asset Detail', 'Alerts', 'Watchlist', 'Profile']
-const promptSuggestions = [
-  'Explain BNB posture',
-  'What changed in LISTA?',
-  'Which assets look event-driven?'
-]
+const tabs = ['Discover', 'Asset Detail', 'Alerts', 'Watchlist', 'Profile'] as const
 
-type BackendStatus = 'loading' | 'live' | 'fallback'
-type SelectedAssetStatus = 'loading' | AssetSource
-
-function getDisplaySymbol(assetOutput: AssetOutput) {
-  return assetOutput.backendSymbol ?? assetOutput.symbol
-}
-
-function getDisplayAssetKey(assetOutput: AssetOutput) {
-  return assetOutput.backendAssetKey ?? assetOutput.assetKey
-}
-
-function buildAnswer(assetOutput: AssetOutput, selectedAssetStatus: SelectedAssetStatus) {
-  const displaySymbol = getDisplaySymbol(assetOutput)
-  const displayAssetKey = getDisplayAssetKey(assetOutput)
-
-  return {
-    eyebrow:
-      selectedAssetStatus === 'backend'
-        ? 'Live answer'
-        : selectedAssetStatus === 'loading'
-          ? 'Syncing answer'
-          : 'Fallback answer',
-    headline: `${displaySymbol} posture summary`,
-    body: assetOutput.summary,
-    confidence: `Confidence: ${assetOutput.confidenceLabel}`,
-    supporting: `${displayAssetKey} · ${assetOutput.playbookLabel}`
-  }
-}
+type Tab = (typeof tabs)[number]
 
 function App() {
   const [assetOutputs, setAssetOutputs] = useState<AssetOutput[]>(fallbackAssetOutputs)
-  const [assetSourcesBySymbol, setAssetSourcesBySymbol] = useState<Partial<Record<string, AssetSource>>>({})
-  const [backendStatus, setBackendStatus] = useState<BackendStatus>('loading')
-  const [selectedTab, setSelectedTab] = useState('Discover')
-  const [selectedAssetKey, setSelectedAssetKey] = useState(fallbackAssetOutputs[0]?.assetKey ?? '')
+  const [selectedTab, setSelectedTab] = useState<Tab>('Discover')
+  const [selectedAssetKey, setSelectedAssetKey] = useState('bsc:BNB')
   const [query, setQuery] = useState(promptSuggestions[0])
 
   useEffect(() => {
@@ -64,10 +26,6 @@ function App() {
       }
 
       setAssetOutputs(results.map((result) => result.assetOutput))
-      setAssetSourcesBySymbol(
-        Object.fromEntries(results.map((result, index) => [fallbackAssetOutputs[index].symbol, result.source]))
-      )
-      setBackendStatus(results.some((result) => result.source === 'backend') ? 'live' : 'fallback')
     }
 
     hydrateAssetOutputs()
@@ -78,40 +36,318 @@ function App() {
     }
   }, [])
 
-  const selectedAssetOutput = useMemo(
-    () => assetOutputs.find((assetOutput) => assetOutput.assetKey === selectedAssetKey) ?? assetOutputs[0],
-    [assetOutputs, selectedAssetKey]
+  const watchlistAssets = useMemo(() => {
+    const preferredSymbols = ['BNB', 'CAKE']
+    return preferredSymbols
+      .map((symbol) => assetOutputs.find((assetOutput) => assetOutput.symbol === symbol))
+      .filter((assetOutput): assetOutput is AssetOutput => Boolean(assetOutput))
+  }, [assetOutputs])
+
+  const selectedAsset = useMemo(
+    () => assetOutputs.find((assetOutput) => assetOutput.assetKey === selectedAssetKey) ?? watchlistAssets[0] ?? assetOutputs[0],
+    [assetOutputs, selectedAssetKey, watchlistAssets]
   )
 
-  if (!selectedAssetOutput) {
+  if (!selectedAsset) {
     return (
       <main className="page-shell page-shell--empty">
         <h1>Narrative Radar</h1>
-        <p>Unable to load the asset summary repository.</p>
+        <p>Unable to load the frontend view model.</p>
       </main>
     )
   }
 
-  const selectedAssetStatus: SelectedAssetStatus =
-    assetSourcesBySymbol[selectedAssetOutput.symbol] ?? (backendStatus === 'loading' ? 'loading' : 'mock')
+  const selectedPreset = getUiPreset(selectedAsset)
+  const discoverConfidence = selectedPreset.confidenceLabel ?? selectedAsset.confidenceLabel
 
-  const answer = buildAnswer(selectedAssetOutput, selectedAssetStatus)
-  const liveAssetCount = Object.values(assetSourcesBySymbol).filter((source) => source === 'backend').length
-  const fallbackAssetCount = assetOutputs.length - liveAssetCount
-  const strongestSetup = assetOutputs.reduce((best, current) =>
-    current.confidenceScore > best.confidenceScore ? current : best
+  const handleSelectAsset = (assetKey: string, tab: Tab = 'Asset Detail') => {
+    setSelectedAssetKey(assetKey)
+    setSelectedTab(tab)
+  }
+
+  const handleAskWhy = (assetKey: string, prompt: string) => {
+    setSelectedAssetKey(assetKey)
+    setQuery(prompt)
+    setSelectedTab('Discover')
+  }
+
+  const renderDiscoverView = () => (
+    <>
+      <section className="discover-hero card-surface">
+        <div className="discover-hero__copy">
+          <h2>Ask AI what today’s posture means</h2>
+          <p>
+            Narrative Radar turns noisy market data and discussion into simple mood, playbook, and risk guidance.
+          </p>
+        </div>
+
+        <div className="discover-hero__prompt-row">
+          <input
+            aria-label="Ask Narrative Radar"
+            className="hero-input"
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Ask Narrative Radar"
+            type="text"
+            value={query}
+          />
+          <button className="primary-button" type="button">
+            Ask AI
+          </button>
+        </div>
+
+        <div className="chip-row">
+          {promptSuggestions.map((suggestion) => (
+            <button
+              className={`chip ${query === suggestion ? 'chip--active' : ''}`}
+              key={suggestion}
+              onClick={() => setQuery(suggestion)}
+              type="button"
+            >
+              {suggestion}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="discover-grid">
+        <section className="watchlist-surface watchlist-surface--discover">
+          <div className="section-heading-row section-heading-row--stacked">
+            <div>
+              <h2>Your Watchlist Today</h2>
+              <p>
+                2 assets are shifting from cautious optimism to more crowded conditions. Main risk: liquidity and execution.
+              </p>
+            </div>
+          </div>
+
+          <div className="discover-watchlist-grid">
+            {watchlistAssets.map((assetOutput) => {
+              const preset = getUiPreset(assetOutput)
+
+              return (
+                <article className="discover-asset-card" key={assetOutput.assetKey}>
+                  <div className="discover-asset-card__top">
+                    <strong>{assetOutput.symbol}</strong>
+                    <span className="pill pill--sentiment">{preset.sentimentLabel}</span>
+                  </div>
+
+                  <p className="discover-asset-card__summary">{preset.discoverSummary}</p>
+
+                  <div className="chip-row chip-row--tight">
+                    <span className="pill pill--risk">Liquidity</span>
+                    <span className="pill pill--risk-danger">Execution</span>
+                  </div>
+
+                  <button
+                    className="inline-link-button"
+                    onClick={() => handleSelectAsset(assetOutput.assetKey)}
+                    type="button"
+                  >
+                    View detail <span aria-hidden="true">›</span>
+                  </button>
+                </article>
+              )
+            })}
+          </div>
+        </section>
+
+        <section className="ask-ai-surface card-surface">
+          <div className="section-heading-row section-heading-row--stacked">
+            <div>
+              <h2>Ask AI</h2>
+              <p>Plain-language explanation layer on top of today’s posture.</p>
+            </div>
+          </div>
+
+          <div className="answer-box">
+            <div className="answer-box__chips">
+              <span className="pill pill--answer">Answer</span>
+              <span className="pill pill--confidence">Confidence: {discoverConfidence}</span>
+            </div>
+            <p>{selectedPreset.askAiSummary}</p>
+          </div>
+
+          <div className="section-subtitle-block">
+            <h3>Evidence</h3>
+          </div>
+          <div className="evidence-bullet-list">
+            {selectedPreset.evidenceBullets.map((item) => (
+              <div className="evidence-bullet-item" key={item}>
+                <span aria-hidden="true">•</span>
+                <span>{item}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      </section>
+    </>
+  )
+
+  const renderAssetDetailView = () => (
+    <section className="detail-grid">
+      <div className="detail-grid__main">
+        <section className="detail-hero-card card-surface">
+          <div className="detail-hero-card__top">
+            <h2>{selectedAsset.symbol}</h2>
+            <div className="chip-row chip-row--tight">
+              <span className="pill pill--sentiment">{selectedPreset.sentimentLabel}</span>
+              <span className="pill pill--outline">Confidence: {selectedPreset.confidenceLabel ?? selectedAsset.confidenceLabel}</span>
+            </div>
+          </div>
+
+          <p className="detail-hero-card__summary">{selectedPreset.discoverSummary}</p>
+
+          <div className="chip-row chip-row--detail-actions">
+            <button className="chip chip--soft-action" onClick={() => setQuery('Why is it overheated?')} type="button">
+              Why is it overheated?
+            </button>
+            <button className="chip chip--soft-action" onClick={() => setQuery('What is the main risk?')} type="button">
+              What is the main risk?
+            </button>
+            <button className="chip chip--soft-action" onClick={() => setQuery('Should I avoid chasing?')} type="button">
+              Should I avoid chasing?
+            </button>
+          </div>
+        </section>
+
+        <section className="detail-copy-card card-surface">
+          <h3>What the crowd feels</h3>
+          <p>{selectedPreset.crowdFeels}</p>
+        </section>
+
+        <section className="detail-copy-card card-surface">
+          <h3>What the crowd is trying to do</h3>
+          <div className="stacked-pills-list">
+            {selectedPreset.crowdPlaybooks.map((item) => (
+              <div className="stacked-pill-item" key={item}>
+                {item}
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      <div className="detail-grid__side">
+        <section className="detail-copy-card card-surface">
+          <h3>What can go wrong now</h3>
+          <div className="stacked-pills-list stacked-pills-list--warning">
+            {selectedPreset.risks.map((item) => (
+              <div className="stacked-pill-item stacked-pill-item--warning" key={item}>
+                {item}
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="detail-copy-card card-surface">
+          <h3>Evidence</h3>
+          <p className="section-note">Why this posture was computed.</p>
+
+          <article className="evidence-post-card">
+            <div className="evidence-post-card__top">
+              <strong>{selectedPreset.evidence.title}</strong>
+              <span aria-hidden="true">◔</span>
+            </div>
+            <p className="evidence-post-card__meta">{selectedPreset.evidence.meta}</p>
+            <p className="evidence-post-card__body">{selectedPreset.evidence.body}</p>
+            <div className="evidence-post-card__stats">
+              {selectedPreset.evidence.stats.map((stat) => (
+                <span key={stat.label}>{`${stat.label} ${stat.value}`}</span>
+              ))}
+            </div>
+          </article>
+        </section>
+      </div>
+    </section>
+  )
+
+  const renderAlertsView = () => (
+    <section className="alerts-list">
+      {alertItems.map((alertItem) => {
+        const alertAsset = assetOutputs.find((assetOutput) => assetOutput.assetKey === alertItem.assetKey) ?? selectedAsset
+
+        return (
+          <article className="alert-card card-surface" key={alertItem.id}>
+            <div className="alert-card__icon" aria-hidden="true">
+              ⚠
+            </div>
+            <div className="alert-card__copy">
+              <h3>{alertItem.title}</h3>
+              <p>{alertItem.description}</p>
+              <span>{alertItem.timestamp}</span>
+            </div>
+            <div className="alert-card__actions">
+              <button className="secondary-button" onClick={() => handleSelectAsset(alertAsset.assetKey)} type="button">
+                View asset
+              </button>
+              <button className="primary-button primary-button--compact" onClick={() => handleAskWhy(alertAsset.assetKey, alertItem.prompt)} type="button">
+                Ask AI why
+              </button>
+            </div>
+          </article>
+        )
+      })}
+    </section>
+  )
+
+  const renderWatchlistView = () => (
+    <section className="watchlist-grid watchlist-grid--full">
+      {watchlistAssets.map((assetOutput) => {
+        const preset = getUiPreset(assetOutput)
+
+        return (
+          <article className="watchlist-card watchlist-card--full card-surface" key={assetOutput.assetKey}>
+            <div className="watchlist-card__header">
+              <h3>{assetOutput.symbol}</h3>
+              <button aria-label={`Save ${assetOutput.symbol}`} className="icon-button icon-button--star" type="button">
+                ☆
+              </button>
+            </div>
+
+            <div className="chip-row chip-row--tight">
+              <span className="pill pill--sentiment">{preset.sentimentLabel}</span>
+              <span className="pill pill--risk">Liquidity</span>
+              <span className="pill pill--risk-danger">Execution</span>
+            </div>
+
+            <p className="watchlist-card__summary">{preset.discoverSummary}</p>
+            <div className="watchlist-card__divider" />
+            <div className="watchlist-card__meta-block">
+              <p>
+                <strong>Change:</strong> {preset.watchlistChange}
+              </p>
+              <p>
+                <strong>Main playbook:</strong> {preset.watchlistMainPlaybook}
+              </p>
+            </div>
+          </article>
+        )
+      })}
+    </section>
+  )
+
+  const renderProfileView = () => (
+    <section className="profile-card card-surface">
+      <h2>Profile</h2>
+      <p className="profile-card__subtitle">Minimal profile surface for MVP.</p>
+      <div className="profile-card__list">
+        <p>Saved watchlist assets: 2</p>
+        <p>BNB Focus mode: On</p>
+        <p>Preferred explanation style: Plain-language guidance</p>
+      </div>
+    </section>
   )
 
   return (
     <main className="page-shell">
       <section className="app-topbar card-surface">
         <div className="brand-lockup">
-          <div className="brand-mark">N</div>
+          <div className="brand-mark">✦</div>
           <div>
             <h1>Narrative Radar</h1>
             <p>AI Copilot for BNB Chain Users</p>
           </div>
-          <span className="tag tag--focus">BNB Focus</span>
+          <span className="top-focus-pill">BNB Focus</span>
         </div>
         <div className="topbar-actions">
           <button aria-label="Search" className="icon-button" type="button">
@@ -120,7 +356,7 @@ function App() {
           <button aria-label="Notifications" className="icon-button" type="button">
             ◌
           </button>
-          <button aria-label="Profile" className="icon-button" type="button">
+          <button aria-label="User menu" className="icon-button" type="button">
             ☺
           </button>
         </div>
@@ -140,119 +376,11 @@ function App() {
         ))}
       </nav>
 
-      <section className="hero-grid">
-        <section className="hero-panel card-surface">
-          <div>
-            <p className="section-kicker">Ask AI</p>
-            <h2>Ask AI what today's posture means</h2>
-            <p className="hero-description">
-              Narrative Radar now treats the deployed backend as the source of truth for per-asset posture summaries and keeps unsupported analysis panels out of the product surface.
-            </p>
-          </div>
-
-          <div className="hero-input-row">
-            <input
-              aria-label="Ask Narrative Radar"
-              className="hero-input"
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Ask Narrative Radar about posture, crowd behavior, or timing risk"
-              type="text"
-              value={query}
-            />
-            <button className="primary-button" type="button">
-              Ask AI
-            </button>
-          </div>
-
-          <div className="chip-row">
-            {promptSuggestions.map((suggestion) => (
-              <button
-                className={`chip ${query === suggestion ? 'chip--active' : ''}`}
-                key={suggestion}
-                onClick={() => setQuery(suggestion)}
-                type="button"
-              >
-                {suggestion}
-              </button>
-            ))}
-          </div>
-
-          <div className="hero-metric-grid">
-            <article className="hero-metric-card">
-              <span>Assets tracked</span>
-              <strong>{assetOutputs.length}</strong>
-              <p>{strongestSetup.symbol} currently leads the confidence stack.</p>
-            </article>
-            <article className="hero-metric-card">
-              <span>Live summaries</span>
-              <strong>{liveAssetCount}</strong>
-              <p>Only deployed backend summaries count toward the live total.</p>
-            </article>
-            <article className="hero-metric-card">
-              <span>Fallback assets</span>
-              <strong>{fallbackAssetCount}</strong>
-              <p>
-                {backendStatus === 'live'
-                  ? 'Fallback stays available for symbols that fail individually.'
-                  : 'All symbols are currently rendering from the local fallback set.'}
-              </p>
-            </article>
-          </div>
-        </section>
-
-        <section className="answer-panel card-surface">
-          <div className="section-heading-row section-heading-row--tight">
-            <div>
-              <p className="section-kicker">{answer.eyebrow}</p>
-              <h2>Ask AI</h2>
-            </div>
-            <span className="tag">{answer.confidence}</span>
-          </div>
-          <div className="answer-card">
-            <div className="answer-card__header">
-              <span className="tag tag--soft">{answer.supporting}</span>
-            </div>
-            <h3>{answer.headline}</h3>
-            <p>{answer.body}</p>
-            <ul className="answer-bullets">
-              <li>Top signal: {selectedAssetOutput.playbookLabel}</li>
-              <li>Risk lens: {selectedAssetOutput.riskFlags[0] ?? 'Execution discipline'}</li>
-              <li>
-                Source:{' '}
-                {selectedAssetStatus === 'backend'
-                  ? 'Backend /asset/{symbol} summary'
-                  : selectedAssetStatus === 'loading'
-                    ? 'Syncing deployed summary'
-                    : 'Mock summary fallback'}
-              </li>
-            </ul>
-          </div>
-        </section>
-      </section>
-
-      <section className="content-grid">
-        <div className="content-grid__left">
-          <AssetStateCardList
-            assetOutputs={assetOutputs}
-            onSelectAsset={(assetKey) => {
-              setSelectedAssetKey(assetKey)
-              setSelectedTab('Asset Detail')
-            }}
-            selectedAssetKey={selectedAssetKey}
-          />
-          <AssetStateDetailPanel assetOutput={selectedAssetOutput} />
-        </div>
-        <div className="content-grid__right">
-          <LiveApiCoveragePanel
-            fallbackAssetCount={fallbackAssetCount}
-            liveAssetCount={liveAssetCount}
-          />
-          <SelectedAssetResponsePanel
-            assetOutput={selectedAssetOutput}
-            assetSource={selectedAssetStatus}
-          />
-        </div>
-      </section>
+      {selectedTab === 'Discover' ? renderDiscoverView() : null}
+      {selectedTab === 'Asset Detail' ? renderAssetDetailView() : null}
+      {selectedTab === 'Alerts' ? renderAlertsView() : null}
+      {selectedTab === 'Watchlist' ? renderWatchlistView() : null}
+      {selectedTab === 'Profile' ? renderProfileView() : null}
     </main>
   )
 }

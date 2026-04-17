@@ -30,7 +30,7 @@ export function EvaluationSnapshotPanel({ evaluationSummary }: EvaluationSnapsho
           <article className="metric-tile" key={metric.label}>
             <span>{metric.label}</span>
             <strong>{metricFormatter.format(metric.value)}</strong>
-            <p>mock extractor가 hint labels와 얼마나 맞는지 보여주는 현재 기준입니다.</p>
+            <p>This is the current benchmark showing how closely the mock extractor matches the hint labels.</p>
           </article>
         ))}
       </div>
