@@ -7,22 +7,24 @@ type FlowStageStripProps = {
 
 export function FlowStageStrip({ stages, activeStageId }: FlowStageStripProps) {
   return (
-    <section className="panel">
-      <div className="panel-header">
+    <section className="section-card compact-flow-card">
+      <div className="section-heading-row">
         <div>
-          <p className="eyebrow">Pipeline overview</p>
+          <p className="section-kicker">How it works</p>
           <h2>How Narrative Radar works</h2>
         </div>
       </div>
-      <div className="stage-strip" aria-label="Narrative Radar pipeline stages">
+      <div className="compact-flow-grid" aria-label="Narrative Radar pipeline stages">
         {stages.map((stage, index) => (
           <article
-            className={`stage-card ${stage.id === activeStageId ? 'stage-card--active' : ''}`}
+            className={`compact-flow-step ${stage.id === activeStageId ? 'compact-flow-step--active' : ''}`}
             key={stage.id}
           >
-            <span className="stage-index">0{index + 1}</span>
-            <h3>{stage.title}</h3>
-            <p>{stage.description}</p>
+            <span className="compact-flow-step__index">0{index + 1}</span>
+            <div>
+              <h3>{stage.title}</h3>
+              <p>{stage.description}</p>
+            </div>
           </article>
         ))}
       </div>

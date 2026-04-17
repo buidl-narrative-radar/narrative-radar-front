@@ -12,46 +12,44 @@ export function AssetStateCardList({
   onSelectAsset
 }: AssetStateCardListProps) {
   return (
-    <section className="panel">
-      <div className="panel-header">
+    <section className="section-card section-card--tinted watchlist-card">
+      <div className="section-heading-row">
         <div>
-          <p className="eyebrow">Output-ready asset states</p>
-          <h2>Mock output.json preview</h2>
+          <p className="section-kicker">Watchlist</p>
+          <h2>Your Watchlist Today</h2>
         </div>
+        <button className="ghost-link" type="button">
+          See all
+        </button>
       </div>
-      <div className="asset-grid">
+      <div className="watchlist-grid">
         {assetOutputs.map((assetOutput) => {
           const isSelected = assetOutput.assetKey === selectedAssetKey
+          const topRisk = assetOutput.riskFlags[0] ?? 'Watch timing'
 
           return (
             <button
-              className={`asset-card ${isSelected ? 'asset-card--selected' : ''}`}
+              className={`watchlist-item ${isSelected ? 'watchlist-item--selected' : ''}`}
               key={assetOutput.assetKey}
               onClick={() => onSelectAsset(assetOutput.assetKey)}
               type="button"
             >
-              <div className="asset-card__top">
+              <div className="watchlist-item__top">
                 <div>
-                  <span className="asset-card__symbol">{assetOutput.symbol}</span>
-                  <p className="asset-card__subline">{assetOutput.assetKey}</p>
+                  <strong>{assetOutput.symbol}</strong>
+                  <p>{assetOutput.assetKey}</p>
                 </div>
-                <span className="pill">{assetOutput.confidenceLabel}</span>
+                <span className="tag tag--status">{assetOutput.confidenceLabel}</span>
               </div>
-              <dl className="asset-metadata">
-                <div>
-                  <dt>Mood</dt>
-                  <dd>{assetOutput.moodLabel}</dd>
-                </div>
-                <div>
-                  <dt>Playbook</dt>
-                  <dd>{assetOutput.playbookLabel}</dd>
-                </div>
-                <div>
-                  <dt>Risk</dt>
-                  <dd>{assetOutput.riskFlags.length > 0 ? assetOutput.riskFlags.join(', ') : 'None flagged'}</dd>
-                </div>
-              </dl>
-              <p className="asset-card__summary">{assetOutput.summary}</p>
+              <div className="watchlist-item__meta">
+                <span className="tag">{assetOutput.moodLabel}</span>
+                <span className="tag tag--soft">{assetOutput.playbookLabel}</span>
+              </div>
+              <p className="watchlist-item__summary">{assetOutput.summary}</p>
+              <div className="watchlist-item__footer">
+                <span>{topRisk}</span>
+                <span>{Math.round(assetOutput.confidenceScore * 100)} confidence</span>
+              </div>
             </button>
           )
         })}

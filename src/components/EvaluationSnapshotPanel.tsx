@@ -18,17 +18,17 @@ export function EvaluationSnapshotPanel({ evaluationSummary }: EvaluationSnapsho
   ]
 
   return (
-    <section className="panel">
-      <div className="panel-header">
+    <section className="section-card">
+      <div className="section-heading-row">
         <div>
-          <p className="eyebrow">Evaluation</p>
+          <p className="section-kicker">Quality check</p>
           <h2>Evaluation Snapshot</h2>
         </div>
       </div>
-      <div className="evaluation-grid">
+      <div className="metric-grid metric-grid--light">
         {metrics.map((metric) => (
-          <article className="metric-card" key={metric.label}>
-            <span className="metric-card__label">{metric.label}</span>
+          <article className="metric-tile" key={metric.label}>
+            <span>{metric.label}</span>
             <strong>{metricFormatter.format(metric.value)}</strong>
             <p>mock extractor가 hint labels와 얼마나 맞는지 보여주는 현재 기준입니다.</p>
           </article>

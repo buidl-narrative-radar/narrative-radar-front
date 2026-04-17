@@ -9,58 +9,77 @@ const metricFormatter = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 2
 })
 
+const playLabelMap: Record<string, string> = {
+  small_repeat_trades: 'Small repeat trades',
+  wait: 'Wait for reset',
+  event_front_run: 'Event front run',
+  no_chase: 'Avoid late chase'
+}
+
 export function AssetStateDetailPanel({ assetOutput }: AssetStateDetailPanelProps) {
+  const dominantPlay = Object.entries(assetOutput.raw.play).sort((a, b) => b[1] - a[1])[0]
+  const dominantPlayLabel = dominantPlay ? playLabelMap[dominantPlay[0]] ?? dominantPlay[0] : 'Unknown'
+
   return (
-    <section className="panel asset-detail-panel">
-      <div className="panel-header">
+    <section className="section-card detail-card">
+      <div className="section-heading-row">
         <div>
-          <p className="eyebrow">Selected asset output</p>
-          <h2>{`Asset Detail · ${assetOutput.symbol}`}</h2>
+          <p className="section-kicker">Asset detail</p>
+          <h2>Asset Detail</h2>
         </div>
-        <div className="detail-summary">
-          <span className="pill pill--accent">{assetOutput.moodLabel}</span>
-          <span className="pill">{assetOutput.playbookLabel}</span>
-          <span className="pill">{assetOutput.confidenceLabel}</span>
+        <div className="detail-badges">
+          <span className="tag tag--strong">{assetOutput.symbol}</span>
+          <span className="tag">{assetOutput.confidenceLabel}</span>
         </div>
       </div>
 
-      <div className="detail-grid">
-        <article className="metric-card metric-card--primary">
-          <span className="metric-card__label">asset_key</span>
-          <strong>{assetOutput.assetKey}</strong>
-          <p>프론트가 바로 소비할 output row의 식별자입니다.</p>
-        </article>
-        <article className="metric-card">
-          <span className="metric-card__label">confidence_score</span>
-          <strong>{metricFormatter.format(assetOutput.confidenceScore)}</strong>
-          <p>confidence_label과 함께 사용자 출력에 전달됩니다.</p>
-        </article>
+      <div className="detail-hero-row">
+        <div>
+          <p className="detail-key">{assetOutput.assetKey}</p>
+          <h3>{dominantPlayLabel}</h3>
+          <p className="detail-copy">{assetOutput.summary}</p>
+        </div>
+        <div className="detail-stats">
+          <article>
+            <span>Confidence</span>
+            <strong>{`Confidence: ${assetOutput.confidenceLabel}`}</strong>
+          </article>
+          <article>
+            <span>Dominant play</span>
+            <strong>{dominantPlayLabel}</strong>
+          </article>
+        </div>
       </div>
 
-      <article className="detail-callout">
-        <span className="metric-card__label">summary</span>
-        <p>{assetOutput.summary}</p>
-      </article>
-
-      <div className="score-columns">
+      <div className="detail-bars-grid">
         <div>
-          <h3>Play distribution</h3>
-          <ul className="score-list">
+          <h4>Play signals</h4>
+          <ul className="bar-list">
             {Object.entries(assetOutput.raw.play).map(([key, value]) => (
               <li key={key}>
-                <span>{key}</span>
-                <strong>{metricFormatter.format(value)}</strong>
+                <div className="bar-list__label-row">
+                  <span>{playLabelMap[key] ?? key}</span>
+                  <strong>{metricFormatter.format(value)}</strong>
+                </div>
+                <div className="bar-track">
+                  <div className="bar-fill" style={{ width: `${Math.max(value * 100, 4)}%` }} />
+                </div>
               </li>
             ))}
           </ul>
         </div>
         <div>
-          <h3>Risk distribution</h3>
-          <ul className="score-list">
+          <h4>Risk profile</h4>
+          <ul className="bar-list">
             {Object.entries(assetOutput.raw.risk).map(([key, value]) => (
               <li key={key}>
-                <span>{key}</span>
-                <strong>{metricFormatter.format(value)}</strong>
+                <div className="bar-list__label-row">
+                  <span>{key.replace('_', ' ')}</span>
+                  <strong>{metricFormatter.format(value)}</strong>
+                </div>
+                <div className="bar-track bar-track--warm">
+                  <div className="bar-fill bar-fill--warm" style={{ width: `${Math.max(value * 100, 4)}%` }} />
+                </div>
               </li>
             ))}
           </ul>

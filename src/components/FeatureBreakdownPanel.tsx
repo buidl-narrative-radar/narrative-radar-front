@@ -11,47 +11,57 @@ const metricFormatter = new Intl.NumberFormat('en-US', {
 
 export function FeatureBreakdownPanel({ feature }: FeatureBreakdownPanelProps) {
   return (
-    <section className="panel">
-      <div className="panel-header">
+    <section className="section-card">
+      <div className="section-heading-row">
         <div>
-          <p className="eyebrow">Feature extractor output</p>
+          <p className="section-kicker">Feature extractor</p>
           <h2>Feature Breakdown</h2>
         </div>
-        <span className="pill">{feature.docId}</span>
+        <span className="tag">{feature.docId}</span>
       </div>
 
-      <div className="feature-summary">
-        <article className="metric-card metric-card--primary">
-          <span className="metric-card__label">Mood score</span>
+      <div className="feature-header-grid">
+        <article className="metric-tile metric-tile--primary">
+          <span>Mood score</span>
           <strong>{metricFormatter.format(feature.moodScore)}</strong>
           <p>clean_text 기반 규칙 추론 결과</p>
         </article>
-        <article className="metric-card">
-          <span className="metric-card__label">aux tags</span>
+        <article className="metric-tile">
+          <span>Aux tags</span>
           <strong>{feature.auxTags.length > 0 ? feature.auxTags.join(', ') : 'None'}</strong>
-          <p>텍스트 의미 추출을 돕는 보조 태그</p>
+          <p>crowd behavior를 설명하는 보조 태그</p>
         </article>
       </div>
 
-      <div className="score-columns">
+      <div className="detail-bars-grid">
         <div>
-          <h3>play_probs</h3>
-          <ul className="score-list">
+          <h4>play_probs</h4>
+          <ul className="bar-list">
             {Object.entries(feature.playProbs).map(([key, value]) => (
               <li key={key}>
-                <span>{key}</span>
-                <strong>{metricFormatter.format(value)}</strong>
+                <div className="bar-list__label-row">
+                  <span>{key}</span>
+                  <strong>{metricFormatter.format(value)}</strong>
+                </div>
+                <div className="bar-track">
+                  <div className="bar-fill" style={{ width: `${Math.max(value * 100, 4)}%` }} />
+                </div>
               </li>
             ))}
           </ul>
         </div>
         <div>
-          <h3>risk_scores</h3>
-          <ul className="score-list">
+          <h4>risk_scores</h4>
+          <ul className="bar-list">
             {Object.entries(feature.riskScores).map(([key, value]) => (
               <li key={key}>
-                <span>{key}</span>
-                <strong>{metricFormatter.format(value)}</strong>
+                <div className="bar-list__label-row">
+                  <span>{key}</span>
+                  <strong>{metricFormatter.format(value)}</strong>
+                </div>
+                <div className="bar-track bar-track--warm">
+                  <div className="bar-fill bar-fill--warm" style={{ width: `${Math.max(value * 100, 4)}%` }} />
+                </div>
               </li>
             ))}
           </ul>

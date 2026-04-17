@@ -1,4 +1,4 @@
-import type { AssetDetail, AssetOutput, EvaluationSummary, FlowStage } from '../domain/types'
+import type { AssetDetail, AssetOutput, EvaluationSummary, FeatureVector, FlowStage, SourceDoc } from '../domain/types'
 import type { NarrativeRadarRepository } from './repository'
 import { assetOutputs, docs, evaluationSummary, features, flowOverview } from './mockGeneratedData'
 
@@ -23,6 +23,14 @@ class MockNarrativeRadarRepository implements NarrativeRadarRepository {
       docs: docs.filter((item) => item.assetKey === assetKey),
       features: features.filter((item) => item.assetKey === assetKey)
     }
+  }
+
+  getAllDocs(): SourceDoc[] {
+    return [...docs]
+  }
+
+  getFeatureByDocId(docId: string): FeatureVector | undefined {
+    return features.find((item) => item.docId === docId)
   }
 
   getEvaluationSummary(): EvaluationSummary {
