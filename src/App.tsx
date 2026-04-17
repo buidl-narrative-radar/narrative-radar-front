@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { AssetStateCardList } from './components/AssetStateCardList'
 import { AssetStateDetailPanel } from './components/AssetStateDetailPanel'
 import { EvaluationSnapshotPanel } from './components/EvaluationSnapshotPanel'
@@ -6,6 +6,7 @@ import { FeatureBreakdownPanel } from './components/FeatureBreakdownPanel'
 import { FlowStageStrip } from './components/FlowStageStrip'
 import { SourceDocList } from './components/SourceDocList'
 import { mockNarrativeRadarRepository } from './data/mockNarrativeRadarRepository'
+import type { AssetOutput } from './domain/types'
 
 const tabs = ['Discover', 'Asset Detail', 'Alerts', 'Watchlist', 'Profile']
 const promptSuggestions = [
@@ -13,57 +14,143 @@ const promptSuggestions = [
   'What changed in LISTA?',
   'Which assets look event-driven?'
 ]
+const API_BASE_URL = import.meta.env.VITE_NARRATIVE_RADAR_API_BASE_URL ?? 'https://narrative-radar-backend.onrender.com'
 
 type FeedMode = 'all' | 'asset'
+type AssetSource = 'backend' | 'mock'
+type BackendStatus = 'loading' | 'live' | 'fallback'
+type SelectedAssetStatus = 'loading' | AssetSource
 
-function buildAnswer(assetKey: string, symbol: string, playbookLabel: string, summary: string) {
-  if (symbol === 'LISTA') {
-    return {
-      eyebrow: 'Answer',
-      headline: 'Event-driven setup is still alive',
-      body:
-        'LISTA still behaves like a catalyst trade. Upside can persist, but the crowd is leaning into timing-sensitive entries, so late participation gets punished faster.',
-      confidence: 'Confidence: Low',
-      supporting: `${assetKey} · ${playbookLabel}`
-    }
-  }
+type BackendAssetPayload = {
+  asset_key?: string
+  symbol?: string
+  mood_label?: string
+  playbook_label?: string
+  risk_flags?: string[]
+  summary?: string
+  confidence_score?: number
+  confidence_label?: string
+}
 
-  if (symbol === 'BNB') {
-    return {
-      eyebrow: 'Answer',
-      headline: 'Conviction is holding, entry quality is slipping',
-      body:
-        'BNB still reads constructive, but positioning is more crowded than it sounds at first glance. The better posture is patience around resets rather than emotional green-candle chasing.',
-      confidence: 'Confidence: Low',
-      supporting: `${assetKey} · ${playbookLabel}`
-    }
-  }
-
+function mergeBackendAssetOutput(
+  fallbackAssetOutput: AssetOutput,
+  backendAssetPayload: BackendAssetPayload
+): AssetOutput {
   return {
-    eyebrow: 'Answer',
-    headline: `${symbol} needs selective execution`,
-    body: summary,
-    confidence: 'Confidence: Low',
-    supporting: `${assetKey} · ${playbookLabel}`
+    ...fallbackAssetOutput,
+    moodLabel: backendAssetPayload.mood_label ?? fallbackAssetOutput.moodLabel,
+    playbookLabel: backendAssetPayload.playbook_label ?? fallbackAssetOutput.playbookLabel,
+    riskFlags: backendAssetPayload.risk_flags ?? fallbackAssetOutput.riskFlags,
+    summary: backendAssetPayload.summary ?? fallbackAssetOutput.summary,
+    confidenceScore: backendAssetPayload.confidence_score ?? fallbackAssetOutput.confidenceScore,
+    confidenceLabel: backendAssetPayload.confidence_label ?? fallbackAssetOutput.confidenceLabel
+  }
+}
+
+async function loadAssetOutputFromBackend(
+  fallbackAssetOutput: AssetOutput,
+  signal: AbortSignal
+): Promise<{ assetOutput: AssetOutput; source: 'backend' | 'mock' }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/asset/${fallbackAssetOutput.symbol}`, { signal })
+
+    if (!response.ok) {
+      throw new Error(`Failed to load ${fallbackAssetOutput.symbol}: ${response.status}`)
+    }
+
+    const backendAssetPayload = (await response.json()) as BackendAssetPayload
+
+    return {
+      assetOutput: mergeBackendAssetOutput(fallbackAssetOutput, backendAssetPayload),
+      source: 'backend'
+    }
+  } catch {
+    return {
+      assetOutput: fallbackAssetOutput,
+      source: 'mock'
+    }
+  }
+}
+
+function buildAnswer(assetOutput: AssetOutput, selectedAssetStatus: SelectedAssetStatus) {
+  return {
+    eyebrow:
+      selectedAssetStatus === 'backend'
+        ? 'Live answer'
+        : selectedAssetStatus === 'loading'
+          ? 'Syncing answer'
+          : 'Fallback answer',
+    headline: `${assetOutput.symbol} posture summary`,
+    body: assetOutput.summary,
+    confidence: `Confidence: ${assetOutput.confidenceLabel}`,
+    supporting: `${assetOutput.assetKey} · ${assetOutput.playbookLabel}`
   }
 }
 
 function App() {
   const repository = mockNarrativeRadarRepository
   const flowOverview = repository.getFlowOverview()
-  const assetOutputs = repository.getAssetOutputs()
+  const fallbackAssetOutputs = useMemo(() => repository.getAssetOutputs(), [repository])
   const evaluationSummary = repository.getEvaluationSummary()
   const allDocs = repository.getAllDocs()
+  const [assetOutputs, setAssetOutputs] = useState<AssetOutput[]>(fallbackAssetOutputs)
+  const [assetSourcesBySymbol, setAssetSourcesBySymbol] = useState<Partial<Record<string, AssetSource>>>({})
+  const [backendStatus, setBackendStatus] = useState<BackendStatus>('loading')
   const [selectedTab, setSelectedTab] = useState('Discover')
-  const [selectedAssetKey, setSelectedAssetKey] = useState(assetOutputs[0]?.assetKey ?? '')
+  const [selectedAssetKey, setSelectedAssetKey] = useState(fallbackAssetOutputs[0]?.assetKey ?? '')
   const [query, setQuery] = useState(promptSuggestions[0])
   const [selectedDocId, setSelectedDocId] = useState('doc_023')
   const [feedMode, setFeedMode] = useState<FeedMode>('all')
 
-  const selectedAssetDetail = useMemo(
+  useEffect(() => {
+    const controller = new AbortController()
+    let mounted = true
+
+    async function hydrateAssetOutputs() {
+      const results = await Promise.all(
+        fallbackAssetOutputs.map((fallbackAssetOutput) =>
+          loadAssetOutputFromBackend(fallbackAssetOutput, controller.signal)
+        )
+      )
+
+      if (!mounted) {
+        return
+      }
+
+      setAssetOutputs(results.map((result) => result.assetOutput))
+      setAssetSourcesBySymbol(
+        Object.fromEntries(results.map((result, index) => [fallbackAssetOutputs[index].symbol, result.source]))
+      )
+      setBackendStatus(results.some((result) => result.source === 'backend') ? 'live' : 'fallback')
+    }
+
+    hydrateAssetOutputs()
+
+    return () => {
+      mounted = false
+      controller.abort()
+    }
+  }, [fallbackAssetOutputs])
+
+  const selectedAssetBaseDetail = useMemo(
     () => repository.getAssetDetail(selectedAssetKey),
     [repository, selectedAssetKey]
   )
+
+  const selectedAssetOutput = useMemo(() => {
+    const fromState = assetOutputs.find((assetOutput) => assetOutput.assetKey === selectedAssetKey)
+    return fromState ?? selectedAssetBaseDetail?.assetOutput ?? fallbackAssetOutputs[0]
+  }, [assetOutputs, fallbackAssetOutputs, selectedAssetBaseDetail, selectedAssetKey])
+
+  const selectedAssetStatus: SelectedAssetStatus =
+    assetSourcesBySymbol[selectedAssetOutput.symbol] ?? (backendStatus === 'loading' ? 'loading' : 'mock')
+
+  const selectedAssetDetail = selectedAssetBaseDetail
+    ? {
+        ...selectedAssetBaseDetail,
+        assetOutput: selectedAssetOutput
+      }
+    : undefined
 
   const selectedFeature = repository.getFeatureByDocId(selectedDocId)
   const selectedDoc = allDocs.find((doc) => doc.docId === selectedDocId)
@@ -107,12 +194,7 @@ function App() {
     )
   }
 
-  const answer = buildAnswer(
-    selectedAssetDetail.assetOutput.assetKey,
-    selectedAssetDetail.assetOutput.symbol,
-    selectedAssetDetail.assetOutput.playbookLabel,
-    selectedAssetDetail.assetOutput.summary
-  )
+  const answer = buildAnswer(selectedAssetDetail.assetOutput, selectedAssetStatus)
 
   return (
     <main className="page-shell">
@@ -126,9 +208,15 @@ function App() {
           <span className="tag tag--focus">BNB Focus</span>
         </div>
         <div className="topbar-actions">
-          <button aria-label="Search" className="icon-button" type="button">⌕</button>
-          <button aria-label="Notifications" className="icon-button" type="button">◌</button>
-          <button aria-label="Profile" className="icon-button" type="button">☺</button>
+          <button aria-label="Search" className="icon-button" type="button">
+            ⌕
+          </button>
+          <button aria-label="Notifications" className="icon-button" type="button">
+            ◌
+          </button>
+          <button aria-label="Profile" className="icon-button" type="button">
+            ☺
+          </button>
         </div>
       </section>
 
@@ -197,7 +285,11 @@ function App() {
             <article className="hero-metric-card">
               <span>Signal quality</span>
               <strong>{signalQuality}</strong>
-              <p>Playbook alignment remains the strongest evaluation signal.</p>
+              <p>
+                {backendStatus === 'live'
+                  ? 'Per-asset backend summaries are now live from the deployed API.'
+                  : 'Mock summaries remain active until the backend responds.'}
+              </p>
             </article>
           </div>
         </section>
@@ -219,7 +311,14 @@ function App() {
             <ul className="answer-bullets">
               <li>Top signal: {selectedAssetDetail.assetOutput.playbookLabel}</li>
               <li>Risk lens: {selectedAssetDetail.assetOutput.riskFlags[0] ?? 'Execution discipline'}</li>
-              <li>Next best action: wait for cleaner confirmation before chasing</li>
+              <li>
+                Source:{' '}
+                {selectedAssetStatus === 'backend'
+                  ? 'Backend /asset/{symbol} summary'
+                  : selectedAssetStatus === 'loading'
+                    ? 'Syncing deployed summary'
+                    : 'Mock summary fallback'}
+              </li>
             </ul>
           </div>
         </section>
