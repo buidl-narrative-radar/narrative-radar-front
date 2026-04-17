@@ -11,8 +11,8 @@ export function SourceDocList({ docs, selectedDocId, onSelectDoc }: SourceDocLis
     <section className="panel">
       <div className="panel-header">
         <div>
-          <p className="eyebrow">Source documents</p>
-          <h2>Mock raw inputs</h2>
+          <p className="eyebrow">Normalized docs</p>
+          <h2>Adapter output preview</h2>
         </div>
       </div>
       <div className="doc-list">
@@ -28,10 +28,14 @@ export function SourceDocList({ docs, selectedDocId, onSelectDoc }: SourceDocLis
             >
               <div className="doc-card__header">
                 <strong>{doc.docId}</strong>
-                <span>{doc.source}</span>
+                <span>{doc.assetSymbol}</span>
               </div>
               <p>{doc.text}</p>
               <dl className="doc-card__meta">
+                <div>
+                  <dt>Author</dt>
+                  <dd>{doc.authorId}</dd>
+                </div>
                 <div>
                   <dt>Published</dt>
                   <dd>{doc.publishedAt ?? 'N/A'}</dd>

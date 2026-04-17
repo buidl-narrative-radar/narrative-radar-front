@@ -1,7 +1,7 @@
-import type { AssetState } from '../domain/types'
+import type { AssetOutput } from '../domain/types'
 
 type AssetStateDetailPanelProps = {
-  assetState: AssetState
+  assetOutput: AssetOutput
 }
 
 const metricFormatter = new Intl.NumberFormat('en-US', {
@@ -9,38 +9,44 @@ const metricFormatter = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 2
 })
 
-export function AssetStateDetailPanel({ assetState }: AssetStateDetailPanelProps) {
+export function AssetStateDetailPanel({ assetOutput }: AssetStateDetailPanelProps) {
   return (
     <section className="panel asset-detail-panel">
       <div className="panel-header">
         <div>
-          <p className="eyebrow">Selected asset</p>
-          <h2>{`Asset Detail · ${assetState.assetKey}`}</h2>
+          <p className="eyebrow">Selected asset output</p>
+          <h2>{`Asset Detail · ${assetOutput.symbol}`}</h2>
         </div>
         <div className="detail-summary">
-          <span className="pill pill--accent">{assetState.moodLabel}</span>
-          <span className="pill">{assetState.playbookLabel}</span>
+          <span className="pill pill--accent">{assetOutput.moodLabel}</span>
+          <span className="pill">{assetOutput.playbookLabel}</span>
+          <span className="pill">{assetOutput.confidenceLabel}</span>
         </div>
       </div>
 
       <div className="detail-grid">
         <article className="metric-card metric-card--primary">
-          <span className="metric-card__label">raw.mood</span>
-          <strong>{metricFormatter.format(assetState.raw.mood)}</strong>
-          <p>집계된 정서 스코어입니다.</p>
+          <span className="metric-card__label">asset_key</span>
+          <strong>{assetOutput.assetKey}</strong>
+          <p>프론트가 바로 소비할 output row의 식별자입니다.</p>
         </article>
         <article className="metric-card">
-          <span className="metric-card__label">Risk flags</span>
-          <strong>{assetState.riskFlags.length > 0 ? assetState.riskFlags.join(', ') : 'None'}</strong>
-          <p>지금 플로우에서 강조되는 리스크 요약입니다.</p>
+          <span className="metric-card__label">confidence_score</span>
+          <strong>{metricFormatter.format(assetOutput.confidenceScore)}</strong>
+          <p>confidence_label과 함께 사용자 출력에 전달됩니다.</p>
         </article>
       </div>
+
+      <article className="detail-callout">
+        <span className="metric-card__label">summary</span>
+        <p>{assetOutput.summary}</p>
+      </article>
 
       <div className="score-columns">
         <div>
           <h3>Play distribution</h3>
           <ul className="score-list">
-            {Object.entries(assetState.raw.play).map(([key, value]) => (
+            {Object.entries(assetOutput.raw.play).map(([key, value]) => (
               <li key={key}>
                 <span>{key}</span>
                 <strong>{metricFormatter.format(value)}</strong>
@@ -51,7 +57,7 @@ export function AssetStateDetailPanel({ assetState }: AssetStateDetailPanelProps
         <div>
           <h3>Risk distribution</h3>
           <ul className="score-list">
-            {Object.entries(assetState.raw.risk).map(([key, value]) => (
+            {Object.entries(assetOutput.raw.risk).map(([key, value]) => (
               <li key={key}>
                 <span>{key}</span>
                 <strong>{metricFormatter.format(value)}</strong>

@@ -1,14 +1,22 @@
 export interface SourceDoc {
   docId: string
   assetKey: string
-  text: string
+  assetSymbol: string
   source: string
+  sourceType: string
+  authorId: string
+  text: string
   publishedAt: string | null
   engagement: {
     views: number
     likes: number
     reposts: number
     comments: number
+  }
+  labels: {
+    mood_hint?: string | null
+    playbook_hint?: string | null
+    risk_hints?: string[]
   }
 }
 
@@ -22,12 +30,15 @@ export interface FeatureVector {
   riskScores: Record<string, number>
 }
 
-export interface AssetState {
+export interface AssetOutput {
   assetKey: string
+  symbol: string
   moodLabel: string
   playbookLabel: string
   riskFlags: string[]
-  confidence: number
+  summary: string
+  confidenceScore: number
+  confidenceLabel: string
   raw: {
     mood: number
     play: Record<string, number>
@@ -41,8 +52,15 @@ export interface FlowStage {
   description: string
 }
 
+export interface EvaluationSummary {
+  moodMatchRate: number
+  playbookMatchRate: number
+  riskOverlapRate: number
+  riskExactMatchRate: number
+}
+
 export interface AssetDetail {
-  assetState: AssetState
+  assetOutput: AssetOutput
   docs: SourceDoc[]
   features: FeatureVector[]
 }

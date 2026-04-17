@@ -216,6 +216,18 @@ ul {
   font-weight: 700;
 }
 
+.asset-card__subline {
+  margin-top: 4px;
+  color: #8d9ac2;
+  font-size: 0.85rem;
+}
+
+.asset-card__summary {
+  margin-top: 14px;
+  color: #b9c5e7;
+  font-size: 0.94rem;
+}
+
 .asset-metadata,
 .doc-card__meta {
   display: grid;
@@ -251,13 +263,15 @@ ul {
 .main-grid__primary,
 .main-grid__secondary,
 .doc-list,
-.feature-summary {
+.feature-summary,
+.evaluation-grid {
   display: grid;
   gap: 16px;
 }
 
 .detail-grid,
-.feature-summary {
+.feature-summary,
+.evaluation-grid {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   margin-bottom: 18px;
 }
@@ -305,6 +319,19 @@ ul {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.detail-callout {
+  margin-bottom: 18px;
+  border-radius: 18px;
+  padding: 18px;
+  background: rgba(14, 26, 50, 0.52);
+  border: 1px solid rgba(148, 168, 255, 0.1);
+}
+
+.detail-callout p {
+  margin-top: 10px;
+  color: #d8e2fb;
 }
 
 @media (max-width: 1100px) {

@@ -1,7 +1,8 @@
-import type { AssetDetail, AssetState, FlowStage } from '../domain/types'
+import type { AssetDetail, AssetOutput, EvaluationSummary, FlowStage } from '../domain/types'
 
 export interface NarrativeRadarRepository {
   getFlowOverview(): FlowStage[]
-  getAssetStates(): AssetState[]
+  getAssetOutputs(): AssetOutput[]
   getAssetDetail(assetKey: string): AssetDetail | undefined
+  getEvaluationSummary(): EvaluationSummary
 }
