@@ -39,7 +39,9 @@ export interface AssetOutput {
   summary: string
   confidenceScore: number
   confidenceLabel: string
-  raw: {
+  backendAssetKey?: string
+  backendSymbol?: string
+  raw?: {
     mood: number
     play: Record<string, number>
     risk: Record<string, number>

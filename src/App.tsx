@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AssetStateCardList } from './components/AssetStateCardList'
 import { AssetStateDetailPanel } from './components/AssetStateDetailPanel'
-import { EvaluationSnapshotPanel } from './components/EvaluationSnapshotPanel'
-import { FeatureBreakdownPanel } from './components/FeatureBreakdownPanel'
-import { FlowStageStrip } from './components/FlowStageStrip'
-import { SourceDocList } from './components/SourceDocList'
-import { mockNarrativeRadarRepository } from './data/mockNarrativeRadarRepository'
+import { LiveApiCoveragePanel } from './components/LiveApiCoveragePanel'
+import { SelectedAssetResponsePanel } from './components/SelectedAssetResponsePanel'
 import type { AssetOutput } from './domain/types'
+import type { AssetSource } from './data/assetSummaryRepository'
+import { fallbackAssetOutputs } from './data/fallbackAssetOutputs'
+import { httpAssetSummaryRepository } from './data/httpAssetSummaryRepository'
 
 const tabs = ['Discover', 'Asset Detail', 'Alerts', 'Watchlist', 'Profile']
 const promptSuggestions = [
@@ -14,65 +14,22 @@ const promptSuggestions = [
   'What changed in LISTA?',
   'Which assets look event-driven?'
 ]
-const API_BASE_URL = import.meta.env.VITE_NARRATIVE_RADAR_API_BASE_URL ?? 'https://narrative-radar-backend.onrender.com'
 
-type FeedMode = 'all' | 'asset'
-type AssetSource = 'backend' | 'mock'
 type BackendStatus = 'loading' | 'live' | 'fallback'
 type SelectedAssetStatus = 'loading' | AssetSource
 
-type BackendAssetPayload = {
-  asset_key?: string
-  symbol?: string
-  mood_label?: string
-  playbook_label?: string
-  risk_flags?: string[]
-  summary?: string
-  confidence_score?: number
-  confidence_label?: string
+function getDisplaySymbol(assetOutput: AssetOutput) {
+  return assetOutput.backendSymbol ?? assetOutput.symbol
 }
 
-function mergeBackendAssetOutput(
-  fallbackAssetOutput: AssetOutput,
-  backendAssetPayload: BackendAssetPayload
-): AssetOutput {
-  return {
-    ...fallbackAssetOutput,
-    moodLabel: backendAssetPayload.mood_label ?? fallbackAssetOutput.moodLabel,
-    playbookLabel: backendAssetPayload.playbook_label ?? fallbackAssetOutput.playbookLabel,
-    riskFlags: backendAssetPayload.risk_flags ?? fallbackAssetOutput.riskFlags,
-    summary: backendAssetPayload.summary ?? fallbackAssetOutput.summary,
-    confidenceScore: backendAssetPayload.confidence_score ?? fallbackAssetOutput.confidenceScore,
-    confidenceLabel: backendAssetPayload.confidence_label ?? fallbackAssetOutput.confidenceLabel
-  }
-}
-
-async function loadAssetOutputFromBackend(
-  fallbackAssetOutput: AssetOutput,
-  signal: AbortSignal
-): Promise<{ assetOutput: AssetOutput; source: 'backend' | 'mock' }> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/asset/${fallbackAssetOutput.symbol}`, { signal })
-
-    if (!response.ok) {
-      throw new Error(`Failed to load ${fallbackAssetOutput.symbol}: ${response.status}`)
-    }
-
-    const backendAssetPayload = (await response.json()) as BackendAssetPayload
-
-    return {
-      assetOutput: mergeBackendAssetOutput(fallbackAssetOutput, backendAssetPayload),
-      source: 'backend'
-    }
-  } catch {
-    return {
-      assetOutput: fallbackAssetOutput,
-      source: 'mock'
-    }
-  }
+function getDisplayAssetKey(assetOutput: AssetOutput) {
+  return assetOutput.backendAssetKey ?? assetOutput.assetKey
 }
 
 function buildAnswer(assetOutput: AssetOutput, selectedAssetStatus: SelectedAssetStatus) {
+  const displaySymbol = getDisplaySymbol(assetOutput)
+  const displayAssetKey = getDisplayAssetKey(assetOutput)
+
   return {
     eyebrow:
       selectedAssetStatus === 'backend'
@@ -80,38 +37,27 @@ function buildAnswer(assetOutput: AssetOutput, selectedAssetStatus: SelectedAsse
         : selectedAssetStatus === 'loading'
           ? 'Syncing answer'
           : 'Fallback answer',
-    headline: `${assetOutput.symbol} posture summary`,
+    headline: `${displaySymbol} posture summary`,
     body: assetOutput.summary,
     confidence: `Confidence: ${assetOutput.confidenceLabel}`,
-    supporting: `${assetOutput.assetKey} · ${assetOutput.playbookLabel}`
+    supporting: `${displayAssetKey} · ${assetOutput.playbookLabel}`
   }
 }
 
 function App() {
-  const repository = mockNarrativeRadarRepository
-  const flowOverview = repository.getFlowOverview()
-  const fallbackAssetOutputs = useMemo(() => repository.getAssetOutputs(), [repository])
-  const evaluationSummary = repository.getEvaluationSummary()
-  const allDocs = repository.getAllDocs()
   const [assetOutputs, setAssetOutputs] = useState<AssetOutput[]>(fallbackAssetOutputs)
   const [assetSourcesBySymbol, setAssetSourcesBySymbol] = useState<Partial<Record<string, AssetSource>>>({})
   const [backendStatus, setBackendStatus] = useState<BackendStatus>('loading')
   const [selectedTab, setSelectedTab] = useState('Discover')
   const [selectedAssetKey, setSelectedAssetKey] = useState(fallbackAssetOutputs[0]?.assetKey ?? '')
   const [query, setQuery] = useState(promptSuggestions[0])
-  const [selectedDocId, setSelectedDocId] = useState('doc_023')
-  const [feedMode, setFeedMode] = useState<FeedMode>('all')
 
   useEffect(() => {
     const controller = new AbortController()
     let mounted = true
 
     async function hydrateAssetOutputs() {
-      const results = await Promise.all(
-        fallbackAssetOutputs.map((fallbackAssetOutput) =>
-          loadAssetOutputFromBackend(fallbackAssetOutput, controller.signal)
-        )
-      )
+      const results = await httpAssetSummaryRepository.hydrateAssetOutputs(fallbackAssetOutputs, controller.signal)
 
       if (!mounted) {
         return
@@ -130,71 +76,31 @@ function App() {
       mounted = false
       controller.abort()
     }
-  }, [fallbackAssetOutputs])
+  }, [])
 
-  const selectedAssetBaseDetail = useMemo(
-    () => repository.getAssetDetail(selectedAssetKey),
-    [repository, selectedAssetKey]
+  const selectedAssetOutput = useMemo(
+    () => assetOutputs.find((assetOutput) => assetOutput.assetKey === selectedAssetKey) ?? assetOutputs[0],
+    [assetOutputs, selectedAssetKey]
   )
 
-  const selectedAssetOutput = useMemo(() => {
-    const fromState = assetOutputs.find((assetOutput) => assetOutput.assetKey === selectedAssetKey)
-    return fromState ?? selectedAssetBaseDetail?.assetOutput ?? fallbackAssetOutputs[0]
-  }, [assetOutputs, fallbackAssetOutputs, selectedAssetBaseDetail, selectedAssetKey])
-
-  const selectedAssetStatus: SelectedAssetStatus =
-    assetSourcesBySymbol[selectedAssetOutput.symbol] ?? (backendStatus === 'loading' ? 'loading' : 'mock')
-
-  const selectedAssetDetail = selectedAssetBaseDetail
-    ? {
-        ...selectedAssetBaseDetail,
-        assetOutput: selectedAssetOutput
-      }
-    : undefined
-
-  const selectedFeature = repository.getFeatureByDocId(selectedDocId)
-  const selectedDoc = allDocs.find((doc) => doc.docId === selectedDocId)
-
-  const visibleDocs = useMemo(() => {
-    if (feedMode === 'asset') {
-      return allDocs.filter((doc) => doc.assetKey === selectedAssetKey)
-    }
-    return allDocs
-  }, [allDocs, feedMode, selectedAssetKey])
-
-  const totalDocuments = allDocs.length
-  const signalQuality = `${Math.round(evaluationSummary.playbookMatchRate * 100)}%`
-  const strongestSetup = assetOutputs.reduce((best, current) =>
-    current.confidenceScore > best.confidenceScore ? current : best
-  )
-
-  const handleSelectAsset = (assetKey: string) => {
-    setSelectedAssetKey(assetKey)
-    setSelectedTab('Asset Detail')
-    if (feedMode === 'asset') {
-      const nextDoc = allDocs.find((doc) => doc.assetKey === assetKey)
-      setSelectedDocId(nextDoc?.docId ?? selectedDocId)
-    }
-  }
-
-  const handleSelectDoc = (docId: string) => {
-    setSelectedDocId(docId)
-    const doc = allDocs.find((item) => item.docId === docId)
-    if (doc) {
-      setSelectedAssetKey(doc.assetKey)
-    }
-  }
-
-  if (!selectedAssetDetail || !selectedFeature) {
+  if (!selectedAssetOutput) {
     return (
       <main className="page-shell page-shell--empty">
         <h1>Narrative Radar</h1>
-        <p>Unable to load the mock repository.</p>
+        <p>Unable to load the asset summary repository.</p>
       </main>
     )
   }
 
-  const answer = buildAnswer(selectedAssetDetail.assetOutput, selectedAssetStatus)
+  const selectedAssetStatus: SelectedAssetStatus =
+    assetSourcesBySymbol[selectedAssetOutput.symbol] ?? (backendStatus === 'loading' ? 'loading' : 'mock')
+
+  const answer = buildAnswer(selectedAssetOutput, selectedAssetStatus)
+  const liveAssetCount = Object.values(assetSourcesBySymbol).filter((source) => source === 'backend').length
+  const fallbackAssetCount = assetOutputs.length - liveAssetCount
+  const strongestSetup = assetOutputs.reduce((best, current) =>
+    current.confidenceScore > best.confidenceScore ? current : best
+  )
 
   return (
     <main className="page-shell">
@@ -240,7 +146,7 @@ function App() {
             <p className="section-kicker">Ask AI</p>
             <h2>Ask AI what today's posture means</h2>
             <p className="hero-description">
-              Narrative Radar translates noisy BNB Chain discussion into posture, playbook, and timing risk so you can scan the market without reading every thread.
+              Narrative Radar now treats the deployed backend as the source of truth for per-asset posture summaries and keeps unsupported analysis panels out of the product surface.
             </p>
           </div>
 
@@ -278,17 +184,17 @@ function App() {
               <p>{strongestSetup.symbol} currently leads the confidence stack.</p>
             </article>
             <article className="hero-metric-card">
-              <span>Documents parsed</span>
-              <strong>{totalDocuments}</strong>
-              <p>Adapter-normalized evidence cards are ready for drill-down.</p>
+              <span>Live summaries</span>
+              <strong>{liveAssetCount}</strong>
+              <p>Only deployed backend summaries count toward the live total.</p>
             </article>
             <article className="hero-metric-card">
-              <span>Signal quality</span>
-              <strong>{signalQuality}</strong>
+              <span>Fallback assets</span>
+              <strong>{fallbackAssetCount}</strong>
               <p>
                 {backendStatus === 'live'
-                  ? 'Per-asset backend summaries are now live from the deployed API.'
-                  : 'Mock summaries remain active until the backend responds.'}
+                  ? 'Fallback stays available for symbols that fail individually.'
+                  : 'All symbols are currently rendering from the local fallback set.'}
               </p>
             </article>
           </div>
@@ -309,8 +215,8 @@ function App() {
             <h3>{answer.headline}</h3>
             <p>{answer.body}</p>
             <ul className="answer-bullets">
-              <li>Top signal: {selectedAssetDetail.assetOutput.playbookLabel}</li>
-              <li>Risk lens: {selectedAssetDetail.assetOutput.riskFlags[0] ?? 'Execution discipline'}</li>
+              <li>Top signal: {selectedAssetOutput.playbookLabel}</li>
+              <li>Risk lens: {selectedAssetOutput.riskFlags[0] ?? 'Execution discipline'}</li>
               <li>
                 Source:{' '}
                 {selectedAssetStatus === 'backend'
@@ -328,42 +234,25 @@ function App() {
         <div className="content-grid__left">
           <AssetStateCardList
             assetOutputs={assetOutputs}
-            onSelectAsset={handleSelectAsset}
+            onSelectAsset={(assetKey) => {
+              setSelectedAssetKey(assetKey)
+              setSelectedTab('Asset Detail')
+            }}
             selectedAssetKey={selectedAssetKey}
           />
-          <AssetStateDetailPanel assetOutput={selectedAssetDetail.assetOutput} />
+          <AssetStateDetailPanel assetOutput={selectedAssetOutput} />
         </div>
         <div className="content-grid__right">
-          <EvaluationSnapshotPanel evaluationSummary={evaluationSummary} />
-          <SourceDocList
-            docs={visibleDocs}
-            feedMode={feedMode}
-            onChangeFeedMode={setFeedMode}
-            onSelectDoc={handleSelectDoc}
-            selectedDocId={selectedDocId}
+          <LiveApiCoveragePanel
+            fallbackAssetCount={fallbackAssetCount}
+            liveAssetCount={liveAssetCount}
+          />
+          <SelectedAssetResponsePanel
+            assetOutput={selectedAssetOutput}
+            assetSource={selectedAssetStatus}
           />
         </div>
       </section>
-
-      <section className="insight-grid">
-        <FlowStageStrip activeStageId="json-summary" stages={flowOverview} />
-        <FeatureBreakdownPanel feature={selectedFeature} />
-      </section>
-
-      {selectedDoc ? (
-        <section className="evidence-footer card-surface">
-          <div>
-            <p className="section-kicker">Selected evidence</p>
-            <h2>{selectedDoc.docId}</h2>
-            <p>{selectedDoc.text}</p>
-          </div>
-          <div className="evidence-footer__meta">
-            <span>{selectedDoc.authorId}</span>
-            <span>{selectedDoc.assetKey}</span>
-            <span>{selectedDoc.publishedAt ?? 'N/A'}</span>
-          </div>
-        </section>
-      ) : null}
     </main>
   )
 }

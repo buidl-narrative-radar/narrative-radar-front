@@ -26,8 +26,8 @@ const backendPayloads: Record<string, Record<string, unknown>> = {
     confidence_label: 'Low'
   },
   LISTA: {
-    asset_key: 'bsc:LISTA',
-    symbol: 'LISTA',
+    asset_key: 'live:LISTA',
+    symbol: 'LISTA-LIVE',
     mood_label: '조심스러운 낙관',
     playbook_label: '이벤트 선점',
     risk_flags: ['유동성', '포인트 경쟁', '실행 리스크'],
@@ -107,7 +107,7 @@ describe('Narrative Radar redesign', () => {
     vi.restoreAllMocks()
   })
 
-  it('renders the light product shell and hydrates hero metrics from backend asset data', async () => {
+  it('renders a backend-first shell and removes unsupported mock analysis sections', async () => {
     render(<App />)
 
     expect(screen.getByRole('heading', { name: /^narrative radar$/i })).toBeInTheDocument()
@@ -121,10 +121,16 @@ describe('Narrative Radar redesign', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/assets tracked/i)).toBeInTheDocument()
-      expect(screen.getByText(/documents parsed/i)).toBeInTheDocument()
-      expect(screen.getByText(/signal quality/i)).toBeInTheDocument()
+      expect(screen.getAllByText(/live summaries/i).length).toBeGreaterThan(0)
+      expect(screen.getAllByText(/fallback assets/i).length).toBeGreaterThan(0)
       expect(screen.getAllByText(/backend summary for bnb/i).length).toBeGreaterThan(0)
     })
+
+    expect(screen.getByRole('heading', { name: /live api coverage/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /selected asset response/i })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /evaluation snapshot/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /evidence feed/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /feature breakdown/i })).not.toBeInTheDocument()
 
     const watchlistHeading = screen.getByRole('heading', { name: /your watchlist today/i })
     const watchlistPanel = watchlistHeading.closest('section')
@@ -133,7 +139,7 @@ describe('Narrative Radar redesign', () => {
     expect(within(watchlistPanel as HTMLElement).getByRole('button', { name: /lista/i })).toBeInTheDocument()
   })
 
-  it('updates the AI answer panel with backend summary when a watchlist asset is selected', async () => {
+  it('updates the AI answer panel and response contract when a watchlist asset is selected', async () => {
     const user = userEvent.setup()
     render(<App />)
 
@@ -148,16 +154,27 @@ describe('Narrative Radar redesign', () => {
     expect(answerPanel).not.toBeNull()
 
     await waitFor(() => {
-      expect(within(answerPanel as HTMLElement).getByText(/bsc:lista/i)).toBeInTheDocument()
+      expect(within(answerPanel as HTMLElement).getByText(/live:lista/i)).toBeInTheDocument()
       expect(
         within(answerPanel as HTMLElement).getByText(/backend summary for lista/i)
       ).toBeInTheDocument()
       expect(within(answerPanel as HTMLElement).getByText(/confidence: medium/i)).toBeInTheDocument()
       expect(within(answerPanel as HTMLElement).getByText(/live answer/i)).toBeInTheDocument()
+      expect(within(answerPanel as HTMLElement).getByText(/lista-live posture summary/i)).toBeInTheDocument()
       expect(
         within(answerPanel as HTMLElement).getByText(/source: backend \/asset\/\{symbol\} summary/i)
       ).toBeInTheDocument()
     })
+
+    const responseHeading = screen.getByRole('heading', { name: /selected asset response/i })
+    const responsePanel = responseHeading.closest('section')
+    expect(responsePanel).not.toBeNull()
+    expect(within(responsePanel as HTMLElement).getByText(/symbol/i)).toBeInTheDocument()
+    expect(within(responsePanel as HTMLElement).getByText(/^lista-live$/i)).toBeInTheDocument()
+    expect(within(responsePanel as HTMLElement).getByText(/playbook label/i)).toBeInTheDocument()
+    expect(within(responsePanel as HTMLElement).getByText(/risk flags/i)).toBeInTheDocument()
+    expect(within(responsePanel as HTMLElement).getByText(/live:LISTA/i)).toBeInTheDocument()
+    expect(within(responsePanel as HTMLElement).getByText(/이벤트 선점/i)).toBeInTheDocument()
 
     const detailHeading = screen.getByRole('heading', { name: /asset detail/i })
     const detailPanel = detailHeading.closest('section')
@@ -179,10 +196,12 @@ describe('Narrative Radar redesign', () => {
       expect(screen.getAllByText(/bsc:BNB는 현재 혼잡 상태이며/i).length).toBeGreaterThan(0)
       expect(screen.getByText(/fallback answer/i)).toBeInTheDocument()
       expect(screen.getByText(/source: mock summary fallback/i)).toBeInTheDocument()
+      expect(screen.getAllByText(/fallback assets/i).length).toBeGreaterThan(0)
     })
 
-    expect(screen.getByRole('heading', { name: /evaluation snapshot/i })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /evidence feed/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /live api coverage/i })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /evaluation snapshot/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /evidence feed/i })).not.toBeInTheDocument()
   })
 
   it('keeps selected-asset source labels honest during partial backend failures', async () => {
